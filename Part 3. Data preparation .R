@@ -147,7 +147,7 @@ for(a in 1:length(Folds)){
  } 
  
 # Create augmented data: time shift ----------------------------------------
-# Will divide into 3-s clips
+
 Folds <- list.files('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/KFolds/',
                     full.names = T)
 

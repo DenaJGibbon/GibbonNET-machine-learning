@@ -155,6 +155,15 @@ ProjectOutputDir <- paste(OutputDirectory, ProjectID, sep='/')
 FolderList <- list.files("/Users/denaclink/Library/CloudStorage/GoogleDrive-denajane13@gmail.com/.shortcut-targets-by-id/1o_rBlAfxY7ITD4Zj-wtMB6CHFfk9D37k/Gibbon Automated Detection Analysis/Acoustic Data/Indonesia_Tahawa_HA_Morrow",
                          full.names = TRUE)
 
+FolderListFull <- list.files(FolderList[3],
+                         full.names = TRUE,recursive = T)
+
+
+FolderListShort <- basename(FolderListFull)
+
+file.copy(from=FolderListFull,
+to=paste('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/TrainAndTest/Test/Indonesia_Tahawa_HA_Morrow_full/',FolderListShort, sep=''))
+
 outputFile <- "Temp.wav"
 
 # List annotation and sound files
@@ -173,7 +182,6 @@ for(a in 1:length(Annotations)){
   # Create WAV file name by splitting the base name
   WavName <- str_split_fixed(BaseName, pattern = '.Table', n = 3)[,1]
   
-  
   # Find the corresponding sound file based on the WAV name
   FullWav <- Sounds[str_detect(Sounds, WavName)]
   
@@ -185,6 +193,7 @@ for(a in 1:length(Annotations)){
   Tempwav <- readWave(outputFile)
   
   file.remove(outputFile)
+  
   # Extract short sound files based on the selection times
   short.sound.files <- lapply(1:(nrow(Selections)), function(i) {
     extractWave(

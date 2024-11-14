@@ -23,7 +23,7 @@ table(ClassName)
 
 # Test ----------------------------------------------------
 
-FullNames <- list.files('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/TrainAndTest/Test/',recursive = T)
+FullNames <- list.files('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/TrainAndTest/Valid/',recursive = T)
 
 length(FullNames)
 

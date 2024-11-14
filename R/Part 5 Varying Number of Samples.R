@@ -3,8 +3,14 @@ library(ROCR)
 library(pROC)
 library(ggpubr)
 library(plyr)
+library(matlab)
+library(cowplot)
 
-PerformanceFolders <- list.files('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/Randomization/KFolds/BirdNET/',full.names = T)
+PerformanceFolders1 <- list.files('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/Randomization2khz/KFolds/BirdNET/',full.names = T)
+PerformanceFolders2 <- list.files('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/Randomization2khz/KFolds-3secsplit/BirdNET/',full.names = T)
+PerformanceFolders3 <- list.files('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/Randomization2khz/KFolds-TimeShift/BirdNET/',full.names = T)
+
+PerformanceFolders <- c(PerformanceFolders1,PerformanceFolders2,PerformanceFolders3)
 
 CombinedFoldPerformance <- data.frame()
 
@@ -13,7 +19,7 @@ for(a in 1:length(PerformanceFolders)) {
   
   for(b in 1:length(SingleFolder)){
   FullPaths <-   list.files(SingleFolder[b],full.names = T)
-  TrainingData <- str_split_fixed(SingleFolder[b],pattern = 'Randomization/',n=2)[,2]  
+  TrainingData <- str_split_fixed(SingleFolder[b],pattern = 'Randomization2khz/',n=2)[,2]  
   TrainingData <- str_split_fixed(TrainingData,pattern = '/',n=2)[,1]  
   
   FoldAndN <- str_split_fixed(SingleFolder[b],pattern = 'BirdNET',n=2)[,2]  
@@ -73,12 +79,22 @@ for(a in 1:length(PerformanceFolders)) {
   Accuracy <-    caretConf$overall[1]
   # Convert predicted probabilities to a matrix
   
-  roc_data <- multiclass.roc(BirdNETPerformanceDF$ActualLabel, BirdNETPerformanceDF$Confidence)
-  auc_attribute <- attr(roc_data, "auc")
+  uniqueLabels <- unique(BirdNETPerformanceDF$ActualLabel)
+  auc.list <- list()
+  for(i in 1:length(uniqueLabels)){
   
-  auc_value <- auc(roc_data)
+    if(uniqueLabels[i] != 'noise'){
+    binary_labels <- ifelse(BirdNETPerformanceDF$ActualLabel == uniqueLabels[i], 1, 0)
+    roc_data_binary <- ROCR::prediction(BirdNETPerformanceDF$Confidence,as.factor(binary_labels))
+    auc_value_binary <- performance(roc_data_binary,"auc")
+    auc_value_binary <- auc_value_binary@y.values[[1]]
+
+    auc_value <- as.numeric(auc_value_binary)
+    auc.list[[i]] <- auc_value
+    }
+  }
   
-  auc_value <- as.numeric(auc_value)
+  auc_value <- mean(unlist(auc.list))
   
   Fold <- FoldAndN
   TempRow <- cbind.data.frame(CaretDF,auc_value,Accuracy,Fold,TrainingData)
@@ -95,10 +111,10 @@ CombinedFoldPerformance$N.samples <- as.factor(str_split_fixed(CombinedFoldPerfo
 CombinedFoldPerformance$N.samples  <- factor(CombinedFoldPerformance$N.samples , levels = c(4, 8, 16, 32))
 
 CombinedFoldPerformance$TrainingData <- revalue(CombinedFoldPerformance$TrainingData,
-        c("KFolds"="Original"))
+        c("KFolds"="Original","KFolds-3secsplit"="3secsplit","KFolds-TimeShift"="TimeShift" ))
 
-ggscatter(data=CombinedFoldPerformance,x='N.samples', y='auc_value',color  ='TrainingData' )+ 
-  ylim(0.5,1)+ylab("AUC")
+ggboxplot(data=CombinedFoldPerformance,x='N.samples', y='auc_value',color  ='TrainingData' )+ 
+  ylab("AUC")
 
 ggboxplot(data=CombinedFoldPerformance,x='Class', y='F1',facet.by   ='TrainingData',
           color = 'N.samples')
@@ -110,11 +126,17 @@ CombinedFoldPerformance_allsamples$N.samples <- 'all'
 
 RandomAndAllDF <- rbind.data.frame(CombinedFoldPerformance,CombinedFoldPerformance_allsamples)
 
-ggscatter(data=RandomAndAllDF,x='N.samples', y='auc_value',color  ='TrainingData' )+ 
-  ylim(0.5,1)+ylab("AUC")
+RandomAndAllDF <- subset(RandomAndAllDF,Class != 'Class: noise' )
 
-ggboxplot(data=RandomAndAllDF,x='Class', y='F1',facet.by   ='TrainingData',
-          color = 'N.samples')
+AUCPlotValid <- ggboxplot(data=RandomAndAllDF,x='N.samples', y='auc_value',color  ='TrainingData' )+ 
+  ylab("AUC")+scale_color_manual(values=c(grey.colors(5)))
 
-ggscatter(data=RandomAndAllDF,x='N.samples', y='Top-1 Accuracy',color   ='TrainingData')
+F1PlotValid <- ggboxplot(data=RandomAndAllDF,x='N.samples', y='F1',facet.by   ='TrainingData',
+          color = 'N.samples')+scale_color_manual(values=c(grey.colors(5)))+guides(color="none")
+
+AccuracyPlotValid <- ggboxplot(data=RandomAndAllDF,x='N.samples', y='Accuracy',color   ='TrainingData')+
+  scale_color_manual(values=c(grey.colors(5)))+ylab('Top-1 \n Accuracy')
+
+cowplot::plot_grid(AUCPlotValid,F1PlotValid,AccuracyPlotValid,
+                   labels = c('A)','B)','C)'))
 

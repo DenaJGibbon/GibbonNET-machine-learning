@@ -67,12 +67,23 @@ for(a in 1:length(PerformanceFolders)) {
  Accuracy <-    caretConf$overall[1]
   # Convert predicted probabilities to a matrix
 
-  roc_data <- multiclass.roc(BirdNETPerformanceDF$ActualLabel, BirdNETPerformanceDF$Confidence)
-  auc_attribute <- attr(roc_data, "auc")
-  
-  auc_value <- auc(roc_data)
+ uniqueLabels <- unique(BirdNETPerformanceDF$ActualLabel)
+ auc.list <- list()
+ for(i in 1:length(uniqueLabels)){
+   
+   if(uniqueLabels[i] != 'noise'){
+     binary_labels <- ifelse(BirdNETPerformanceDF$ActualLabel == uniqueLabels[i], 1, 0)
+     roc_data_binary <- ROCR::prediction(BirdNETPerformanceDF$Confidence,as.factor(binary_labels))
+     auc_value_binary <- performance(roc_data_binary,"auc")
+     auc_value_binary <- auc_value_binary@y.values[[1]]
+     auc_value <- as.numeric(auc_value_binary)
+     auc.list[[i]] <- auc_value
+    
+   }
+ }
  
-  auc_value <- as.numeric(auc_value)
+ auc_value <- mean(unlist(auc.list))
+
  
   Fold <- basename(PerformanceFolders[a])
   TrainingData <- TrainingDataList[a]
@@ -85,6 +96,7 @@ for(a in 1:length(PerformanceFolders)) {
 
 ggboxplot(data=CombinedFoldPerformance_allsamples,x='TrainingData', y='auc_value',color  ='TrainingData' )+ 
   ylim(0.5,1)+ylab("AUC")
+
 
 ggboxplot(data=CombinedFoldPerformance_allsamples,x='Class', y='F1',color  ='TrainingData')
 
