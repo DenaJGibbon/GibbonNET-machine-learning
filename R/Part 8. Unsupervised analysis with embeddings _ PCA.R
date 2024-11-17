@@ -1,6 +1,8 @@
 library(dplyr)
 library(stringr)
 library(ggpubr)
+library(dplyr)
+
 
 # BirdNET features --------------------------------------------------------
 
@@ -95,7 +97,7 @@ plot.for.BirdNETM2$Species <- plyr::revalue(plot.for.BirdNETM2$Species,
 
 
 
-plot.for.BirdNETM2 <- subset(plot.for.BirdNETM2,Site=="hylmue_Lempake"|Site=="HM_Kukar"|Site=="HF_Danum"|Site=="HF_Maliau")
+#plot.for.BirdNETM2 <- subset(plot.for.BirdNETM2,Site=="hylmue_Lempake"|Site=="HM_Kukar"|Site=="HF_Danum"|Site=="HF_Maliau")
 
 BirdNETM2Scatter <- ggpubr::ggscatter(data = plot.for.BirdNETM2,x = "Dim.1",
                                       y = "Dim.2",
@@ -125,102 +127,133 @@ BirdNETM2ScatterSpecies
 
 
 
-BirdNETPCA <- prcomp(BirdNetFeatures [, -c(2049)])
-BirdNETPCA <- as.data.frame(BirdNETPCA$x[,1:3])
-BirdNETPCA$Species <- plot.for.BirdNETM2$Species
-BirdNETPCA$Site <- plot.for.BirdNETM2$Site
-colnames(BirdNETPCA)
+BirdNETUMAP <- umap::umap(BirdNetFeatures [, -c(2049)])
+
+BirdNETUMAP <- as.data.frame(BirdNETUMAP$layout)
+colnames(BirdNETUMAP) <- c('Dim.1','Dim.2')
+
+BirdNETUMAP$Species <- plot.for.BirdNETM2$Species
+BirdNETUMAP$Site <- plot.for.BirdNETM2$Site
+colnames(BirdNETUMAP)
+
 
 plot.for.BirdNETM2$Species[which(BirdNetFeatures$ProjectID=='Indonesia_Sokokembang_HM_Aoliya')] <- 'JG'
 
 
-BirdNETPCA$Species <- plyr::revalue(as.factor(BirdNETPCA$Species),
-                                           c("SS"='Siamang','AG'='Agile','HA'='White bearded', 'JG'= 'Javan', 'MG'= 'Mentawi',
+BirdNETUMAP$Species <- plyr::revalue(as.factor(BirdNETUMAP$Species),
+                                           c("SS"='Siamang','AG'='Agile','HA'='White bearded', 'JG'= 'Javan', 'MG'= 'Kloss',
                                              'HF'= 'Northern grey','HM'='Müller','LG'='Lar','NG'='Crested'))
 
 
-PC1.2 <- ggpubr::ggscatter(data = BirdNETPCA,x = "PC1",
-                  y = "PC2",size = 0.75,ellipse=TRUE,
-                  color='Species',alpha=0.5)+ scale_color_manual(values =matlab::jet.colors (length(
-                    unique(BirdNETPCA$Species)
-                  ))) 
+means <- BirdNETUMAP %>% 
+  group_by(Species) %>% 
+  summarize(across(c(Dim.1, Dim.2), mean))
 
-PC1.3 <- ggpubr::ggscatter(data = BirdNETPCA,x = "PC1",
-                  y = "PC3",size = 0.75,ellipse=TRUE,
-                  color='Species',alpha=0.5)+ scale_color_manual(values =matlab::jet.colors (length(
-                    unique(BirdNETPCA$Species)
-                  ))) 
+means[3,]$Dim.2 <- means[3,]$Dim.2 -1
+means[4,]$Dim.2 <- means[4,]$Dim.2 +1
+
+Dim.1.2 <- ggpubr::ggscatter(data = BirdNETUMAP,x = "Dim.1",
+                  y = "Dim.2",size = 1,
+                  color='Species',alpha=1)+ scale_color_manual(values =matlab::jet.colors (length(
+                    unique(BirdNETUMAP$Species)
+                  ))) + 
+  geom_point(size=4, data=means,color=matlab::jet.colors (length(
+    unique(BirdNETUMAP$Species)))) + 
+  geom_label(alpha=0.5,aes(label=Species), fill=matlab::jet.colors (length(
+    unique(BirdNETUMAP$Species))), nudge_y =1, data=means) + 
+  ggpubr::theme_pubr()+guides(color="none",fill="none")+
+  theme(axis.text.y=element_blank(),
+        axis.text.x=element_blank())
+
+Dim.1.2
 
 
-BirdNETPCA$Genera <- plyr::revalue(BirdNETPCA$Species,
+BirdNETUMAP$Genera <- plyr::revalue(BirdNETUMAP$Species,
                                             c('Siamang'='Symphalangus',
                                               'Crested'='Nomasus'))
 
-BirdNETPCA$Genera <- as.character(BirdNETPCA$Genera)
-BirdNETPCA$Genera <- ifelse(BirdNETPCA$Genera != 'Symphalangus' & BirdNETPCA$Genera != 'Nomasus', 'Hylobates', BirdNETPCA$Genera)
+BirdNETUMAP$Genera <- as.character(BirdNETUMAP$Genera)
+BirdNETUMAP$Genera <- ifelse(BirdNETUMAP$Genera != 'Symphalangus' & BirdNETUMAP$Genera != 'Nomasus', 'Hylobates', BirdNETUMAP$Genera)
+
+means.genera <- BirdNETUMAP %>% 
+  group_by(Genera) %>% 
+  summarize(across(c(Dim.1, Dim.2), mean))
 
 
-PC1.2.genera <- ggpubr::ggscatter(data = BirdNETPCA,x = "PC1",
-                           y = "PC2",size = 0.75,ellipse=TRUE,
+Dim.1.2.genera <- ggpubr::ggscatter(data = BirdNETUMAP,x = "Dim.1",
+                           y = "Dim.2",size = 1,#ellipse=TRUE,
                            color='Genera',alpha=0.5)+ scale_color_manual(values =matlab::jet.colors (length(
-                             unique(BirdNETPCA$Genera)
-                           ))) 
+                             unique(BirdNETUMAP$Genera)
+                           ))) + 
+  geom_point(size=4, data=means.genera,color=matlab::jet.colors (length(
+    unique(BirdNETUMAP$Genera)))) + 
+  geom_label(alpha=0.5,aes(label=Genera), fill=matlab::jet.colors (length(
+    unique(BirdNETUMAP$Genera))), nudge_y =1, data=means.genera) + 
+  guides(color="none",fill="none")+
+  theme(axis.text.y=element_blank(),
+        axis.text.x=element_blank())
 
-PC1.3.genera <- ggpubr::ggscatter(data = BirdNETPCA,x = "PC1",
-                                  y = "PC3",size = 0.75,ellipse=TRUE,
-                                  color='Genera',alpha=0.5)+ scale_color_manual(values =matlab::jet.colors (length(
-                                    unique(BirdNETPCA$Genera)
-                                  ))) 
+Dim.1.2.genera
+
+BirdNETUMAPHylobates <- subset(BirdNETUMAP,Species=='Northern grey' | Species=='Müller')
+
+means.Hylobates <- BirdNETUMAPHylobates %>% 
+  group_by(Species) %>% 
+  summarize(across(c(Dim.1, Dim.2), mean))
+
+Dim.1.2.hylobates <-ggpubr::ggscatter(data = BirdNETUMAPHylobates,x = "Dim.1",
+                  y = "Dim.2",size = 1,#ellipse=TRUE,
+                  color='Species',alpha=0.5)+ scale_color_manual(values= c('grey',
+                                                                           'orange')) + 
+  geom_point(size=4, data=means.Hylobates,color=c('grey',
+                                                  'orange')) + 
+  geom_label(alpha=0.5,aes(label=Species), fill=c('grey',
+                                        'orange'), nudge_y =1, data=means.Hylobates) + 
+  ggpubr::theme_pubr()+guides(color="none",fill="none")+
+  theme(axis.text.y=element_blank(),
+        axis.text.x=element_blank())
 
 
 
+BirdNETUMAPLar <- subset(BirdNETUMAP,Site=="LG_Sikundur" |Site== "LG_Kenyir State Park")
 
-BirdNETPCAHylobates <- subset(BirdNETPCA,Species=='Northern grey' | Species=='Müller')
-
-PC1.3.hylobates <- ggpubr::ggscatter(data = BirdNETPCAHylobates,x = "PC1",
-                  y = "PC3",size = 0.75,ellipse=TRUE,
-                  color='Species',alpha=0.5)+ scale_color_manual(values =matlab::jet.colors (length(
-                    unique(BirdNETPCA$Species)
-                  ))) 
-
-PC1.2.hylobates <-ggpubr::ggscatter(data = BirdNETPCAHylobates,x = "PC1",
-                  y = "PC2",size = 0.75,ellipse=TRUE,
-                  color='Species',alpha=0.5)+ scale_color_manual(values =matlab::jet.colors (length(
-                    unique(BirdNETPCA$Species)
-                  ))) 
+means.lar <- BirdNETUMAPLar %>% 
+  group_by(Site) %>% 
+  summarize(across(c(Dim.1, Dim.2), mean))
 
 
-BirdNETPCALar <- subset(BirdNETPCA,Site=="LG_Sikundur" |Site== "LG_Kenyir State Park")
-
-BirdNETPCALar$Site <- revalue(BirdNETPCALar$Site,
+BirdNETUMAPLar$Site <- revalue(BirdNETUMAPLar$Site,
         c("LG_Sikundur"="Indonesia (lar)",
           "LG_Kenyir State Park"= "Malaysia (lar)"))
 
-PC1.3.lar <- ggpubr::ggscatter(data = BirdNETPCALar,x = "PC1",
-                  y = "PC3",size = 0.75,ellipse=TRUE,
-                  color='Site',alpha=0.5)+ scale_color_manual(values= c('yellow',
-                                                                      'blue')) 
+                                                       
+Dim.1.2.lar <- ggpubr::ggscatter(data = BirdNETUMAPLar,x = "Dim.1",
+                  y = "Dim.2",size = 1,#ellipse=TRUE,
+                  color='Site',alpha=0.5)+ scale_color_manual(values= c('grey',
+                                                                        'red')) +
+  geom_point(size=4, data=means.lar,color=c('red',
+                                                  'grey')) + 
+  geom_label(alpha=0.5,aes(label=Site), fill=c('red',
+                                        'grey'), nudge_y =1, data=means.lar) + 
+  ggpubr::theme_pubr()+guides(color="none",fill="none")+
+  theme(axis.text.y=element_blank(),
+        axis.text.x=element_blank())
 
-PC1.2.lar <- ggpubr::ggscatter(data = BirdNETPCALar,x = "PC1",
-                  y = "PC2",size = 0.75,ellipse=TRUE,
-                  color='Site',alpha=0.5)+ scale_color_manual(values= c('yellow',
-                                                                        'blue')) 
-
-pdf(file='Unsupervisedplot.pdf', height=14,width = 12)
-cowplot::plot_grid(PC1.2,PC1.3,
-                   PC1.2.genera,PC1.3.genera,
-                   PC1.2.lar,PC1.3.lar,
-                   PC1.2.hylobates, PC1.3.hylobates,
-                   nrow=4,
-                   labels = c('A','B','C','D','E','F','G','H'),
-                   label_x = 0.99)
-graphics.off()
+#pdf(file='Unsupervisedplot_UMAP.pdf', height=14,width = 12)
+cowplot::plot_grid(Dim.1.2,
+                   Dim.1.2.genera,
+                   Dim.1.2.lar,
+                   Dim.1.2.hylobates, 
+                   nrow=2,
+                   labels = c('A)','B)','C)','D)'),
+                   label_x = 0.9)
+#graphics.off()
 
 
 
 AllHDBSCAN <- dbscan::hdbscan(BirdNetFeatures [, -c(2049)],minPts=15)
 
-class_counts <- table(BirdNETPCA$Species, AllHDBSCAN$cluster)
+class_counts <- table(BirdNETUMAP$Species, AllHDBSCAN$cluster)
 
 
 cluster_with_most_class <-

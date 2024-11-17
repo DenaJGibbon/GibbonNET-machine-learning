@@ -517,3 +517,15 @@ for(y in 1:nrow(Selections)){
 }
   }
 }
+
+
+
+# Clean halb --------------------------------------------------------------
+Filelist <- list.files('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/TrainAndTest/Train/Indonesia_MungkuBaru_hylalb_Erb/HA_FG',
+           full.names = T)
+
+FilelistShort <- basename(Filelist)
+
+file.copy(from=Filelist[which(str_detect(Filelist,'GC'))],
+          to=paste('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/TrainAndTest/Train/Indonesia_MungkuBaru_hylalb_Erb/HA_FG_clean/',
+                   FilelistShort[which(str_detect(Filelist,'GC'))],sep='' ) )

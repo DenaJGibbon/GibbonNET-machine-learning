@@ -54,11 +54,7 @@ for(a in 1:length(TrainingFolds)){
 }
 
 
-TempTest <- list.files('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/KFolds/fold_1/train/',recursive = T)
-TempTrain <- list.files('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/KFolds/fold_1/test/',recursive = T)
 
-which(TempTrain %in% TempTest)
-which(TempTest %in% TempTrain)
 
 # Create augmented data: 3-sec clips ----------------------------------------
 Folds <- list.files('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/KFolds/',
@@ -221,6 +217,80 @@ for(a in 1:length(Folds)){
 } 
 
 
+
+# All training clips time shift -------------------------------------------
+
+OutputDir  <- '/Volumes/DJC Files/OrxyGibbonAutomatedDetection/TrainAllClips/Train_all_timeshift/'
+
+WavDir <- list.files('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/TrainAndTest/Train',
+                     full.names = T)
+
+for(a in 7:length(WavDir)){
+  
+ TempList <-  list.files(WavDir[a],
+             full.names = T)
+  
+  FolderNamesUnique <-  basename(TempList)
+  FolderNamesUnique <- str_split_fixed(FolderNamesUnique,pattern = '_', n=2)[,1]
+  
+  for(b in 1:length(FolderNamesUnique)){
+    dir.create( paste(OutputDir, FolderNamesUnique[b],sep=''), recursive=T)
+    
+  }
+  
+  for(c in 1:length(TempList)){
+    
+    TrainingWavslist <-list.files(TempList[c], full.names = T)
+    
+    OutputFolder <-paste(OutputDir, FolderNamesUnique[c],sep='')
+    
+    for(d in 1:length(TrainingWavslist)){
+      print(d)
+      
+      TempWav <- readWave(TrainingWavslist[d])
+      CombinedWav1 <- Wave(left = TempWav@left, samp.rate = TempWav@samp.rate, bit = TempWav@bit, pcm = TempWav@pcm)
+      
+      N.samples..sec <- TempWav@samp.rate
+      
+      RandomShift <- runif(1,-N.samples..sec,N.samples..sec)
+      
+      if(RandomShift < 0){
+        
+        RandomShift <-  abs(RandomShift)
+        CombinedWav1@left <-  c(rep(0,round(RandomShift,0)),TempWav@left)
+        
+      } else {
+        
+        CombinedWav1@left <-  c(TempWav@left,rep(0,round(RandomShift,0)))
+        
+      }
+      
+      Shortwav.files <- c(CombinedWav1)
+      
+      ShortName <-  basename(TrainingWavslist[d])
+      
+      lapply(1:length(Shortwav.files),
+             function(i)
+               writeWave(
+                 Shortwav.files[[i]],
+                 filename = paste(
+                   OutputFolder, '/',
+                   ShortName, '_',
+                   Seq.length[i], '_',
+                   '.wav',
+                   sep = ''
+                 ),
+                 extensible = FALSE
+               ))
+      
+      
+    }
+    
+    
+  }
+  
+  
+}
 
 
 

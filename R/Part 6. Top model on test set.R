@@ -5,9 +5,10 @@ library(ROCR)
 library(caret)
 library(ggpubr)
 library(reshape2)
+library(stringr)
 
-# Based on top-1 accuracy and AUC use 3-sec split models
-TestResults <- list.files('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/TestResults/BirdNETOutput',full.names = T)
+# Based on best AUC
+TestResults <- list.files('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/TestResults/BirdNETOutput_bestauc/',full.names = T)
 #TestResults <- list.files('/Volumes/DJC Files/OrxyGibbonAutomatedDetection/TestResults/BirdNETOutput_bestauc',full.names = T)
 
 CombinedFoldPerformance_test <- data.frame()
@@ -41,8 +42,9 @@ for(a in 1:length(TestResults)){
     # Find the highest confidence for each clip
     if(nrow(TempDF) > 0){
       ActualLabel <- ActualLabelAll[b]
-      PredictedLabel <- TempDF$Species.Code
-      Confidence <- TempDF$Confidence
+      Index <- which.max(TempDF$Confidence)
+      PredictedLabel <- TempDF[Index,]$Species.Code
+      Confidence <- TempDF[Index,]$Confidence
     } else{
       TempDF <- read.delim(ClipDetections[b])
       
@@ -84,10 +86,10 @@ for(a in 1:length(TestResults)){
     if(uniqueLabels[i] != 'noise'){
       binary_labels <- ifelse(BirdNETPerformanceDF$ActualLabel == uniqueLabels[i], 1, 0)
       roc_data_binary <- ROCR::prediction(BirdNETPerformanceDF$Confidence,as.factor(binary_labels))
-      auc_value_binary <- performance(roc_data_binary,"auc")
-      auc_value_binary <- auc_value_binary@y.values[[1]]
-      auc_value <- as.numeric(auc_value_binary)
-      auc.list[[i]] <- auc_value
+      AUC_binary <- performance(roc_data_binary,"auc")
+      AUC_binary <- AUC_binary@y.values[[1]]
+      AUC <- as.numeric(AUC_binary)
+      auc.list[[i]] <- AUC
       
       
       Thresholds <- seq(0.1,1,0.05)
@@ -120,7 +122,7 @@ for(a in 1:length(TestResults)){
         # FPR <-  FP / (FP + TN)
         # # Create a row for the result and add it to the SampleSizeGreyGibbon
         #TrainingData <- training_data_type
-        TempF1Row <- cbind.data.frame(F1, Precision, Recall)#,FPR
+        TempF1Row <- cbind.data.frame(F1, Precision, Recall,AUC)#,FPR
         TempF1Row$Thresholds <- Thresholds[a]
         TempF1Row$Class <- uniqueLabels[i]
         ThresholdPerfDF <- rbind.data.frame(ThresholdPerfDF,TempF1Row )
@@ -129,12 +131,12 @@ for(a in 1:length(TestResults)){
     }
   }
   
-  auc_value <- mean(unlist(auc.list))
+  AUC <- mean(unlist(auc.list))
   
   
   Fold <- basename(TestResults[a])
   TrainingData <- '3secsplit '
-  TempRow <- cbind.data.frame(CaretDF,auc_value,Accuracy,Fold,TrainingData)
+  TempRow <- cbind.data.frame(CaretDF,AUC,Accuracy,Fold,TrainingData)
   TempRow$Class <- rownames(TempRow)
   
   CombinedFoldPerformance_test <- rbind.data.frame(CombinedFoldPerformance_test,TempRow )
@@ -147,7 +149,7 @@ ggboxplot(data=CombinedFoldPerformance_test,x='Class', y='F1',color   ='Training
 
 # Convert to long format
 CombinedFoldPerformance_test_long <- CombinedFoldPerformance_test %>%
-  pivot_longer(cols = c(F1, auc_value, Accuracy), 
+  pivot_longer(cols = c(F1, AUC, Accuracy), 
                names_to = "Metric", 
                values_to = "Value")
 
@@ -216,5 +218,10 @@ for(j in 1:length(UniqueClass)){
   TempF1 <- TempF1[which.max(TempF1$F1),]
   BestF1DF <- rbind.data.frame(BestF1DF,TempF1 )
 }
-BestF1DF
+
+BestF1DF[,c(1:4)] <- round(BestF1DF[,c(1:4)],2)
+
+write.csv(BestF1DF[,c(6,5,1:4)],'data/BestF1DF.csv')
+
+CombinedFoldPerformance_test$AUC
 
